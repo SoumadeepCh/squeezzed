@@ -18,28 +18,71 @@ interface QuizConfig {
 
 type AppState = 'config' | 'quiz' | 'results';
 
-type Question = {
-  type: 'mcq' | 'objective' | 'long';
+interface MCQQuestion {
+  type: 'mcq';
   question: string;
-  options?: string[];
-  correctAnswer: number | string;
+  options: string[];
+  correctAnswer: number;
   explanation: string;
-  keyPoints?: string[];
-  sampleAnswer?: string;
-};
+}
 
-type QuizResults = {
-  score: number;
-  totalQuestions: number;
-  timeSpent: number;
-  answers: Record<number, string | number>;
-};
+interface ObjectiveQuestion {
+  type: 'objective';
+  question: string;
+  correctAnswer: string;
+  explanation: string;
+}
+
+interface LongAnswerQuestion {
+  type: 'long';
+  question: string;
+  keyPoints: string[];
+  sampleAnswer: string;
+}
+
+type Question = MCQQuestion | ObjectiveQuestion | LongAnswerQuestion;
+
+interface QuizResult {
+  results: Array<{
+    questionIndex: number;
+    isCorrect: boolean;
+    score: number;
+    feedback: string;
+    correctAnswer?: string;
+  }>;
+  summary: {
+    totalQuestions: number;
+    correctAnswers: number;
+    averageScore: number;
+    percentage: number;
+  };
+  quizMetadata: {
+    topic: string;
+    difficulty: string;
+    totalQuestions: number;
+    questionsAnswered: number;
+    totalTimeSpent: number;
+    timeLimit: number | null;
+    completedAt: string;
+  };
+  questionDetails: Array<{
+    type: 'mcq' | 'objective' | 'long';
+    question: string;
+    userAnswer?: string | number;
+    timeSpent: number;
+    result?: {
+      isCorrect: boolean;
+      score: number;
+      feedback: string;
+    };
+  }>;
+}
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>('config');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuizConfig, setCurrentQuizConfig] = useState<QuizConfig | null>(null);
-  const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
+  const [quizResults, setQuizResults] = useState<QuizResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const [maxRetries] = useState(2);
@@ -141,7 +184,7 @@ export default function Home() {
     }
   };
 
-  const handleQuizComplete = (results: QuizResults) => {
+  const handleQuizComplete = (results: QuizResult) => {
     setQuizResults(results);
     setAppState('results');
     toast.success('Quiz completed successfully!');
