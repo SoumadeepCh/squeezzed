@@ -403,10 +403,13 @@ function generateQuestionsFromTemplates(
   const allQuestions: Array<{ type: string; template: any }> = [];
   
   questionTypes.forEach(type => {
-    const templates = QUESTION_TEMPLATES[type as keyof typeof QUESTION_TEMPLATES]?.[category as keyof typeof QUESTION_TEMPLATES.mcq] || [];
-    templates.forEach(template => {
-      allQuestions.push({ type, template });
-    });
+    const typeTemplates = QUESTION_TEMPLATES[type as keyof typeof QUESTION_TEMPLATES];
+    if (typeTemplates) {
+      const templates = typeTemplates[category as keyof typeof typeTemplates] || [];
+      templates.forEach((template: any) => {
+        allQuestions.push({ type, template });
+      });
+    }
   });
   
   // If no questions available for this category, try fallback categories
@@ -418,15 +421,18 @@ function generateQuestionsFromTemplates(
       if (fallbackCategory === category) continue;
       
       questionTypes.forEach(type => {
-        const templates = QUESTION_TEMPLATES[type as keyof typeof QUESTION_TEMPLATES]?.[fallbackCategory as keyof typeof QUESTION_TEMPLATES.mcq] || [];
-        templates.forEach(template => {
-          // Modify the question to indicate it's adapted from a different category
-          const adaptedTemplate = {
-            ...template,
-            question: `[Adapted for ${topic}] ${template.question}`
-          };
-          allQuestions.push({ type, template: adaptedTemplate });
-        });
+        const typeTemplates = QUESTION_TEMPLATES[type as keyof typeof QUESTION_TEMPLATES];
+        if (typeTemplates) {
+          const templates = typeTemplates[fallbackCategory as keyof typeof typeTemplates] || [];
+          templates.forEach((template: any) => {
+            // Modify the question to indicate it's adapted from a different category
+            const adaptedTemplate = {
+              ...template,
+              question: `[Adapted for ${topic}] ${template.question}`
+            };
+            allQuestions.push({ type, template: adaptedTemplate });
+          });
+        }
       });
       
       if (allQuestions.length >= questionCount) break;

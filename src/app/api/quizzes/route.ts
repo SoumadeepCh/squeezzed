@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Build query
     const userId = new mongoose.Types.ObjectId(session.user.id);
-    const query: any = { userId: userId };
+    const query: Record<string, unknown> = { userId: userId };
     
     if (topic) {
       query['quizMetadata.topic'] = { $regex: topic, $options: 'i' };
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     // Process favorite topics
     let topTopics: { topic: string; count: number }[] = [];
     if (stats.length > 0 && stats[0].favoriteTopics) {
-      const topicCounts = stats[0].favoriteTopics.reduce((acc: any, topic: string) => {
+      const topicCounts = stats[0].favoriteTopics.reduce((acc: Record<string, number>, topic: string) => {
         acc[topic] = (acc[topic] || 0) + 1;
         return acc;
       }, {});

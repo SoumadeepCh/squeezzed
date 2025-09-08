@@ -159,7 +159,7 @@ export default function SettingsPage() {
               <p><strong>Step 1:</strong> Get your OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" className="text-blue-600 hover:underline">OpenAI Platform</a></p>
               <p><strong>Step 2:</strong> Enter your API key in the configuration section above</p>
               <p><strong>Step 3:</strong> Go back to the home page and create your first quiz!</p>
-              <p><strong>Note:</strong> Your API key is stored locally in your browser for security. You'll need to re-enter it if you clear your browser data.</p>
+              <p><strong>Note:</strong> Your API key is stored locally in your browser for security. You&apos;ll need to re-enter it if you clear your browser data.</p>
             </div>
           </div>
         </AceternityCard>
