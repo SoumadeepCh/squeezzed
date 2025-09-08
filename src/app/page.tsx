@@ -1,103 +1,193 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import MainLayout from "@/components/layout/main-layout";
+import QuizConfig from "@/components/quiz/quiz-config";
+import QuizContainer from "@/components/quiz/quiz-container";
+import QuizResults from "@/components/quiz/quiz-results";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
+
+interface QuizConfig {
+  topic: string;
+  questionCount: number;
+  questionTypes: string[];
+  difficulty: string;
+  timeLimit?: number;
+}
+
+type AppState = 'config' | 'quiz' | 'results';
+
+type Question = {
+  type: 'mcq' | 'objective' | 'long';
+  question: string;
+  options?: string[];
+  correctAnswer: number | string;
+  explanation: string;
+  keyPoints?: string[];
+  sampleAnswer?: string;
+};
+
+type QuizResults = {
+  score: number;
+  totalQuestions: number;
+  timeSpent: number;
+  answers: Record<number, string | number>;
+};
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [appState, setAppState] = useState<AppState>('config');
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentQuizConfig, setCurrentQuizConfig] = useState<QuizConfig | null>(null);
+  const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [maxRetries] = useState(2);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+  const handleStartQuiz = async (config: QuizConfig, isRetry: boolean = false) => {
+    if (!isRetry) {
+      setRetryAttempt(0);
+    }
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/generate-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic: config.topic,
+          questionCount: config.questionCount,
+          questionTypes: config.questionTypes,
+          difficulty: config.difficulty,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        
+        // Handle specific error types with user-friendly messages
+        if (response.status === 429) {
+          const message = errorData.userFriendly || 
+                         'OpenAI API quota exceeded. Please try again later or with fewer questions.';
+          toast.error(message, {
+            duration: 10000,
+            description: 'You can try reducing the number of questions or waiting a few minutes before trying again.'
+          });
+          throw new Error(message);
+        }
+        
+        if (response.status === 401) {
+          const message = errorData.userFriendly || 'Authentication error with AI service';
+          toast.error(message, {
+            duration: 8000,
+            description: 'Please contact support if this problem persists.'
+          });
+          throw new Error(message);
+        }
+        
+        if (response.status >= 500) {
+          const message = errorData.userFriendly || 'AI service temporarily unavailable';
+          toast.error(message, {
+            duration: 8000,
+            description: 'Please try again in a few minutes.'
+          });
+          throw new Error(message);
+        }
+        
+        // Default error handling
+        const message = errorData.userFriendly || errorData.error || 'Failed to generate questions';
+        throw new Error(message);
+      }
+
+      const data = await response.json();
+      
+      if (!data.questions || data.questions.length === 0) {
+        throw new Error('No questions were generated');
+      }
+
+      setQuestions(data.questions);
+      setCurrentQuizConfig(config);
+      setAppState('quiz');
+      toast.success(`Generated ${data.questions.length} questions successfully!`);
+      
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error('Error starting quiz:', error);
+      
+      // For quota errors, offer retry with fewer questions
+      if (errorMessage.includes('quota') && retryAttempt < maxRetries && config.questionCount > 1) {
+        const reducedCount = Math.max(1, Math.floor(config.questionCount / 2));
+        setRetryAttempt(prev => prev + 1);
+        
+        toast.info(`Retrying with ${reducedCount} questions...`, {
+          duration: 3000
+        });
+        
+        setTimeout(() => {
+          handleStartQuiz({
+            ...config,
+            questionCount: reducedCount
+          }, true);
+        }, 2000);
+        
+        return;
+      }
+      
+      toast.error(errorMessage || 'Failed to start quiz. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuizComplete = (results: QuizResults) => {
+    setQuizResults(results);
+    setAppState('results');
+    toast.success('Quiz completed successfully!');
+  };
+
+  const handleRetakeQuiz = () => {
+    if (currentQuizConfig) {
+      handleStartQuiz(currentQuizConfig);
+    }
+  };
+
+  const handleNewQuiz = () => {
+    setAppState('config');
+    setQuestions([]);
+    setCurrentQuizConfig(null);
+    setQuizResults(null);
+  };
+
+  return (
+    <MainLayout>
+      {appState === 'config' && (
+        <QuizConfig
+          onStartQuiz={handleStartQuiz}
+          loading={loading}
+        />
+      )}
+      
+      {appState === 'quiz' && currentQuizConfig && (
+        <QuizContainer
+          questions={questions}
+          topic={currentQuizConfig.topic}
+          difficulty={currentQuizConfig.difficulty}
+          timeLimit={currentQuizConfig.timeLimit}
+          onComplete={handleQuizComplete}
+        />
+      )}
+      
+      {appState === 'results' && quizResults && (
+        <QuizResults
+          results={quizResults}
+          onRetakeQuiz={handleRetakeQuiz}
+          onNewQuiz={handleNewQuiz}
+        />
+      )}
+      
+      <Toaster position="bottom-right" richColors />
+    </MainLayout>
   );
 }
